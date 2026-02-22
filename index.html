@@ -3,13 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>1 Minute Tap Challenge - Test Your Speed!</title>
-    <meta name="description" content="Test your reflexes and tapping speed in the 1 Minute Tap Challenge. Can you reach the Speed Monster rank?">
+    <title>1 Minute Tap Challenge - Global Leaderboard</title>
+    <meta name="description" content="Test your reflexes and tapping speed in the 1 Minute Tap Challenge. Can you reach the top of the Global Leaderboard?">
     
-    <meta property="og:title" content="1 Minute Tap Challenge">
-    <meta property="og:description" content="Tap as fast as you can in 60 seconds! Play the addictive web game now.">
-    <meta property="og:type" content="website">
-
     <style>
         :root {
             --primary: #ff4757;
@@ -64,7 +60,6 @@
             40%, 60% { transform: translate3d(4px, 0, 0); }
         }
 
-        /* Glassmorphism Container */
         .container {
             background: var(--glass-bg);
             backdrop-filter: blur(12px);
@@ -79,7 +74,6 @@
             position: relative;
         }
 
-        /* High Score Badge */
         .high-score-badge {
             position: absolute;
             top: 15px;
@@ -130,7 +124,6 @@
         h1 { font-size: 2.2rem; margin-bottom: 1rem; text-shadow: 0 2px 4px rgba(0,0,0,0.3); }
         p { font-size: 1.1rem; margin-bottom: 1.5rem; color: #dfe4ea; }
 
-        /* Buttons */
         .btn {
             background: var(--primary);
             color: white;
@@ -156,7 +149,6 @@
         }
         .btn-secondary:hover { background: rgba(255,255,255,0.3); box-shadow: none;}
 
-        /* Game Screen UI */
         .header-stats {
             display: flex;
             justify-content: space-between;
@@ -188,7 +180,6 @@
 
         .progress-fill.danger { background: var(--primary); }
 
-        /* Giant Tap Button */
         #tapBtn {
             width: 200px;
             height: 200px;
@@ -213,7 +204,6 @@
             box-shadow: inset 10px 10px 20px rgba(0,0,0,0.3), inset -10px -10px 20px rgba(255,255,255,0.1);
         }
 
-        /* Floating +1 Animation */
         .floating-text {
             position: absolute;
             font-size: 2rem;
@@ -230,7 +220,6 @@
             100% { transform: translateY(-80px) scale(1.5); opacity: 0; }
         }
 
-        /* End Screen & Leaderboard */
         #finalMessage { font-size: 1.8rem; font-weight: bold; color: #feca57; margin: 10px 0; }
         #finalScoreDisplay { font-size: 4rem; font-weight: 900; color: #1dd1a1; line-height: 1; }
         
@@ -254,7 +243,6 @@
             100% { transform: scale(1); opacity: 1; }
         }
 
-        /* Confetti Effect */
         .confetti {
             position: fixed;
             top: -10px;
@@ -362,7 +350,7 @@
             <div id="personalBestDisplay">Your Personal Best: 0</div>
             
             <div id="nameInputSection">
-                <p>Save your score to the leaderboard!</p>
+                <p>Save your score to the global leaderboard!</p>
                 <div class="input-group">
                     <input type="text" id="playerName" placeholder="Enter your name" maxlength="15" autocomplete="off">
                     <button class="btn" style="width: auto; margin:0;" onclick="saveScore()">Save</button>
@@ -370,7 +358,7 @@
             </div>
 
             <div id="leaderboardSection" style="display: none; width: 100%;">
-                <h3>Top 10 Leaderboard</h3>
+                <h3>Global Top 10</h3>
                 <div class="leaderboard-list" id="leaderboardList">
                     </div>
             </div>
@@ -380,7 +368,63 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getFirestore, collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        // ==========================================
+        // 1. PASTE YOUR FIREBASE CONFIGURATION HERE
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyCUhwHFvg-XwhZXP9Dso4xOwc6rq2-NHao",
+            authDomain: "minute-tap-challenge.firebaseapp.com",
+            projectId: "minute-tap-challenge",
+            storageBucket: "minute-tap-challenge.firebasestorage.app",
+            messagingSenderId: "1079053847138",
+            appId: "1:1079053847138:web:4fc63c242112ffe9e75f3b",
+            measurementId: "G-HKPHE849FC"
+        };
+
+        // --- Firebase Initialization ---
+        let db = null;
+        try {
+            if (Object.keys(firebaseConfig).length > 0) {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                
+                // Real-time Global Leaderboard Listener
+                const q = query(collection(db, "leaderboard"), orderBy("score", "desc"), limit(10));
+                onSnapshot(q, (snapshot) => {
+                    leaderboardList.innerHTML = '';
+                    let index = 1;
+                    snapshot.forEach((doc) => {
+                        const entry = doc.data();
+                        const item = document.createElement('div');
+                        item.className = 'leaderboard-item';
+                        
+                        // Highlight current player using Name + Score heuristic
+                        if (entry.name === playerNameInput.value.trim() && entry.score === score) {
+                            item.classList.add('current-player');
+                        }
+
+                        item.innerHTML = `
+                            <span class="rank">#${index}</span>
+                            <span class="name">${escapeHTML(entry.name)}</span>
+                            <span class="score">${entry.score}</span>
+                        `;
+                        leaderboardList.appendChild(item);
+                        index++;
+                    });
+                }, (error) => {
+                    console.error("Error fetching real-time leaderboard: ", error);
+                });
+            } else {
+                console.warn("⚠️ Firebase config is missing. Leaderboard features will be disabled.");
+            }
+        } catch (error) {
+            console.error("Firebase init failed:", error);
+        }
+
         // --- State Variables ---
         let score = 0;
         let timeLeft = 60;
@@ -413,59 +457,59 @@
         const shareBtn = document.getElementById('shareBtn');
         const playerNameInput = document.getElementById('playerName');
 
-        // Init High Score Display
+        // Initial Setup
         highScoreValue.textContent = personalHighScore;
+        if (personalHighScore > 0) highScoreBadge.style.display = 'block';
 
-        // --- Audio System ---
+        // --- Audio & Visual Effects ---
         function initAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
         }
 
         function playPop() {
             if (!audioCtx) return;
             const osc = audioCtx.createOscillator();
             const gain = audioCtx.createGain();
-            
             osc.connect(gain);
             gain.connect(audioCtx.destination);
-            
             osc.type = 'sine';
             osc.frequency.setValueAtTime(800, audioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(300, audioCtx.currentTime + 0.05);
-            
             gain.gain.setValueAtTime(1, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
-            
             osc.start();
             osc.stop(audioCtx.currentTime + 0.05);
         }
 
-        // --- Screen Management ---
+        function fireConfetti() {
+            const colors = ['#ff4757', '#1dd1a1', '#feca57', '#5f27cd', '#54a0ff'];
+            for (let i = 0; i < 50; i++) {
+                const confetti = document.createElement('div');
+                confetti.classList.add('confetti');
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animationDuration = (Math.random() * 2 + 1.5) + 's';
+                confetti.style.animationDelay = (Math.random() * 0.2) + 's';
+                document.body.appendChild(confetti);
+                setTimeout(() => confetti.remove(), 3500);
+            }
+        }
+
         function showScreen(screenElement) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            // Small timeout allows the display:none to clear before opacity transitions
-            setTimeout(() => {
-                screenElement.classList.add('active');
-            }, 10);
+            setTimeout(() => screenElement.classList.add('active'), 10);
         }
 
         // --- Game Logic ---
-        function initGame() {
+        window.initGame = function() {
             initAudio();
             score = 0;
             timeLeft = TOTAL_TIME;
             gameActive = true;
-            
-            // Refresh High Score data from storage in case of multiple tabs
             personalHighScore = parseInt(localStorage.getItem('personalHighScore')) || 0;
             highScoreValue.textContent = personalHighScore;
             
-            // Reset UI
             scoreDisplay.textContent = score;
             timeDisplay.textContent = timeLeft;
             progressFill.style.width = '100%';
@@ -477,20 +521,17 @@
             
             showScreen(gameScreen);
             timerInterval = setInterval(updateTimer, 1000);
-        }
+        };
 
         function updateTimer() {
             timeLeft--;
             timeDisplay.textContent = timeLeft;
-            
-            const percentage = (timeLeft / TOTAL_TIME) * 100;
-            progressFill.style.width = `${percentage}%`;
+            progressFill.style.width = `${(timeLeft / TOTAL_TIME) * 100}%`;
 
             if (timeLeft <= 10) {
                 progressFill.classList.add('danger');
                 if (timeLeft <= 5) body.classList.add('tension');
             }
-
             if (timeLeft <= 0) endGame();
         }
 
@@ -506,7 +547,6 @@
                 isNewBest = true;
             }
 
-            // Set End Screen Data
             if (score < 200) finalMessage.textContent = "Keep Practicing";
             else if (score < 400) finalMessage.textContent = "Fast Hands!";
             else finalMessage.textContent = "Speed Monster!";
@@ -520,7 +560,6 @@
 
             showScreen(endScreen);
 
-            // Animate Score Counting Up
             animateScoreValue(finalScoreDisplay, 0, score, 1000, () => {
                 if (isNewBest && score > 0) {
                     newBestMessage.style.display = 'block';
@@ -536,121 +575,73 @@
                 const progress = Math.min((timestamp - startTimestamp) / duration, 1);
                 const easeOut = progress * (2 - progress);
                 obj.innerHTML = Math.floor(easeOut * (end - start) + start);
-                if (progress < 1) {
-                    window.requestAnimationFrame(step);
-                } else {
-                    if(callback) callback();
-                }
+                if (progress < 1) window.requestAnimationFrame(step);
+                else if(callback) callback();
             };
             window.requestAnimationFrame(step);
         }
 
-        // --- Visual Effects ---
-        function fireConfetti() {
-            const colors = ['#ff4757', '#1dd1a1', '#feca57', '#5f27cd', '#54a0ff'];
-            for (let i = 0; i < 50; i++) {
-                const confetti = document.createElement('div');
-                confetti.classList.add('confetti');
-                confetti.style.left = Math.random() * 100 + 'vw';
-                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-                confetti.style.animationDuration = (Math.random() * 2 + 1.5) + 's';
-                confetti.style.animationDelay = (Math.random() * 0.2) + 's';
-                document.body.appendChild(confetti);
-                
-                setTimeout(() => confetti.remove(), 3500);
-            }
-        }
-
-        // --- Anti-Cheat & Tap Handling ---
+        // --- Tap Handling & Anti-Cheat ---
         tapBtn.addEventListener('pointerdown', (e) => {
-            // Anti-cheat: Ensure event is trusted. 
-            // e.isPrimary ensures only the first simultaneous touch is counted, blocking multi-finger spamming.
             if (!e.isTrusted || !gameActive || !e.isPrimary) return;
 
-            // Haptic feedback (Subtle vibration for supported mobile devices)
             if (navigator.vibrate) navigator.vibrate(10);
-
-            // Visual feedback
             tapBtn.classList.add('pressed');
             setTimeout(() => tapBtn.classList.remove('pressed'), 50);
 
-            // Logic
             score++;
             scoreDisplay.textContent = score;
             playPop();
-            createFloatingText(e);
+            
+            const floatText = document.createElement('div');
+            floatText.classList.add('floating-text');
+            floatText.textContent = '+1';
+            const rect = tapBtn.getBoundingClientRect();
+            floatText.style.left = `${(e.clientX || rect.left + rect.width / 2) - rect.left - 15}px`;
+            floatText.style.top = `${(e.clientY || rect.top + rect.height / 2) - rect.top - 20}px`;
+            tapBtn.appendChild(floatText);
+            setTimeout(() => floatText.remove(), 600);
 
-            // Pulse high score badge dynamically if beaten during gameplay
             if (score > personalHighScore && personalHighScore > 0) {
-                if (!highScoreBadge.classList.contains('pulse')) {
-                    highScoreBadge.classList.add('pulse');
-                }
+                if (!highScoreBadge.classList.contains('pulse')) highScoreBadge.classList.add('pulse');
                 highScoreValue.textContent = score;
             }
         });
 
         tapBtn.addEventListener('contextmenu', e => e.preventDefault());
 
-        function createFloatingText(e) {
-            const floatText = document.createElement('div');
-            floatText.classList.add('floating-text');
-            floatText.textContent = '+1';
-
-            const rect = tapBtn.getBoundingClientRect();
-            const x = (e.clientX || rect.left + rect.width / 2) - rect.left - 15;
-            const y = (e.clientY || rect.top + rect.height / 2) - rect.top - 20;
-
-            floatText.style.left = `${x}px`;
-            floatText.style.top = `${y}px`;
-
-            tapBtn.appendChild(floatText);
-            setTimeout(() => floatText.remove(), 600);
-        }
-
-        // --- Leaderboard ---
-        function getLeaderboard() {
-            const data = localStorage.getItem('1minTapChallenge_lb');
-            return data ? JSON.parse(data) : [];
-        }
-
-        function saveScore() {
-            let name = playerNameInput.value.trim() || "Anonymous";
-            const leaderboard = getLeaderboard();
+        // --- Firestore Leaderboard ---
+        window.saveScore = async function() {
+            let name = playerNameInput.value.trim();
             
-            const newEntry = { name: name, score: score, date: new Date().getTime() };
-            leaderboard.push(newEntry);
-            leaderboard.sort((a, b) => b.score - a.score);
-            leaderboard.splice(10);
-            
-            localStorage.setItem('1minTapChallenge_lb', JSON.stringify(leaderboard));
-            
+            if (!name) {
+                alert("Please enter a valid name!");
+                return;
+            }
+            name = name.substring(0, 15);
+
+            if (!db) {
+                alert("Firebase is not configured! Cannot save score globally.");
+                return;
+            }
+
             nameInputSection.style.display = 'none';
-            leaderboardSection.style.display = 'block';
-            shareBtn.style.display = 'block';
             
-            renderLeaderboard(newEntry);
-        }
-
-        function renderLeaderboard(currentEntry) {
-            const leaderboard = getLeaderboard();
-            leaderboardList.innerHTML = '';
-
-            leaderboard.forEach((entry, index) => {
-                const item = document.createElement('div');
-                item.className = 'leaderboard-item';
+            try {
+                await addDoc(collection(db, "leaderboard"), {
+                    name: name,
+                    score: score,
+                    createdAt: serverTimestamp()
+                });
                 
-                if (currentEntry && entry.score === currentEntry.score && entry.date === currentEntry.date) {
-                    item.classList.add('current-player');
-                }
-
-                item.innerHTML = `
-                    <span class="rank">#${index + 1}</span>
-                    <span class="name">${escapeHTML(entry.name)}</span>
-                    <span class="score">${entry.score}</span>
-                `;
-                leaderboardList.appendChild(item);
-            });
-        }
+                leaderboardSection.style.display = 'block';
+                shareBtn.style.display = 'block';
+            } catch (e) {
+                console.error("Error saving to Firestore: ", e);
+                alert("Error saving score to the cloud. Check console.");
+                nameInputSection.style.display = 'block';
+            }
+        };
 
         function escapeHTML(str) {
             const div = document.createElement('div');
@@ -658,39 +649,29 @@
             return div.innerHTML;
         }
 
-        // --- Sharing ---
-        function shareScore() {
-            const text = `I scored ${score} taps in the 1 Minute Tap Challenge! Think you have faster hands? Can you beat me?`;
-            
+        playerNameInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') window.saveScore();
+        });
+
+        // --- Utils ---
+        window.shareScore = function() {
+            const text = `I scored ${score} taps in the 1 Minute Tap Challenge! Think you have faster hands?`;
             if (navigator.clipboard && window.isSecureContext) {
                 navigator.clipboard.writeText(text).then(() => {
                     const originalText = shareBtn.textContent;
                     shareBtn.textContent = "Copied to Clipboard!";
                     setTimeout(() => shareBtn.textContent = originalText, 2000);
-                }).catch(err => fallbackShare(text));
+                }).catch(() => prompt("Copy to share:", text));
             } else {
-                fallbackShare(text);
+                prompt("Copy to share:", text);
             }
-        }
+        };
 
-        function fallbackShare(text) {
-            prompt("Copy this text to share your score:", text);
-        }
-
-        function resetToStart() {
-            highScoreValue.textContent = personalHighScore; // ensure it's up to date
+        window.resetToStart = function() {
+            highScoreValue.textContent = personalHighScore;
             if (personalHighScore === 0) highScoreBadge.style.display = 'none';
             showScreen(startScreen);
-        }
-
-        playerNameInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') saveScore();
-        });
-
-        // Initialize state view for High Score Badge on load
-        if (personalHighScore > 0) {
-            highScoreBadge.style.display = 'block';
-        }
+        };
     </script>
 </body>
 </html>
